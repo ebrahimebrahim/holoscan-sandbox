@@ -1,0 +1,1 @@
+Direct copy of [this example](https://docs.nvidia.com/holoscan/sdk-user-guide/examples/ping_simple.html) with some modifications.
