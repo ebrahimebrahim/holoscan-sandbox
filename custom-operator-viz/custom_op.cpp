@@ -17,6 +17,8 @@
 
 #include "custom_op.hpp"
 
+#include <Spinnaker.h>
+
 #include <chrono>
 #include <cinttypes>
 #include <string>
