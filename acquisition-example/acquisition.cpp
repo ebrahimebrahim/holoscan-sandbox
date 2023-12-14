@@ -15,30 +15,6 @@
 // THIS SOFTWARE OR ITS DERIVATIVES.
 //=============================================================================
 
-/**
-*  @example Acquisition.cpp
-*
-*  @brief Acquisition.cpp shows how to acquire images. It relies on
-*  information provided in the Enumeration example. Also, check out the
-*  ExceptionHandling and NodeMapInfo examples if you haven't already.
-*  ExceptionHandling shows the handling of standard and Spinnaker exceptions
-*  while NodeMapInfo explores retrieving information from various node types.
-*
-*  This example touches on the preparation and cleanup of a camera just before
-*  and just after the acquisition of images. Image retrieval and conversion,
-*  grabbing image data, and saving images are all covered as well.
-*
-*  Once comfortable with Acquisition, we suggest checking out
-*  AcquisitionMultipleCamera, NodeMapCallback, or SaveToAvi.
-*  AcquisitionMultipleCamera demonstrates simultaneously acquiring images from
-*  a number of cameras, NodeMapCallback serves as a good introduction to
-*  programming with callbacks and events, and SaveToAvi exhibits video creation.
-*
-*  Please leave us feedback at: https://www.surveymonkey.com/r/TDYMVAPI
-*  More source code examples at: https://github.com/Teledyne-MV/Spinnaker-Examples
-*  Need help? Check out our forum at: https://teledynevisionsolutions.zendesk.com/hc/en-us/community/topics
-*/
-
 #include <Spinnaker.h>
 #include <SpinGenApi/SpinnakerGenApi.h>
 #include <iostream>
@@ -48,89 +24,6 @@ using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
 using namespace Spinnaker::GenICam;
 using namespace std;
-
-// Disables or enables heartbeat on GEV cameras so debugging does not incur timeout errors
-int ConfigureGVCPHeartbeat(CameraPtr pCam, bool enable)
-{
-    //
-    // Write to boolean node controlling the camera's heartbeat
-    //
-    // *** NOTES ***
-    // This applies only to GEV cameras.
-    //
-    // GEV cameras have a heartbeat built in, but when debugging applications the
-    // camera may time out due to its heartbeat. Disabling the heartbeat prevents
-    // this timeout from occurring, enabling us to continue with any necessary 
-    // debugging.
-    //
-    // *** LATER ***
-    // Make sure that the heartbeat is reset upon completion of the debugging.  
-    // If the application is terminated unexpectedly, the camera may not locked
-    // to Spinnaker indefinitely due to the the timeout being disabled.  When that 
-    // happens, a camera power cycle will reset the heartbeat to its default setting.
-
-    // Retrieve TL device nodemap
-    INodeMap& nodeMapTLDevice = pCam->GetTLDeviceNodeMap();
-
-    // Retrieve GenICam nodemap
-    INodeMap& nodeMap = pCam->GetNodeMap();
-
-    CEnumerationPtr ptrDeviceType = nodeMapTLDevice.GetNode("DeviceType");
-    if (!IsReadable(ptrDeviceType))
-    {
-        return -1;
-    }
-
-    if (ptrDeviceType->GetIntValue() != DeviceType_GigEVision)
-    {
-        return 0;
-    }
-
-    if (enable)
-    {
-        cout << endl << "Resetting heartbeat..." << endl << endl;
-    }
-    else
-    {
-        cout << endl << "Disabling heartbeat..." << endl << endl;
-    }
-
-    CBooleanPtr ptrDeviceHeartbeat = nodeMap.GetNode("GevGVCPHeartbeatDisable");
-    if (!IsWritable(ptrDeviceHeartbeat))
-    {
-        cout << "Unable to configure heartbeat. Continuing with execution as this may be non-fatal..."
-            << endl
-            << endl;
-    }
-    else
-    {
-        ptrDeviceHeartbeat->SetValue(enable);
-
-        if (!enable)
-        {
-            cout << "WARNING: Heartbeat has been disabled for the rest of this example run." << endl;
-            cout << "         Heartbeat will be reset upon the completion of this run.  If the " << endl;
-            cout << "         example is aborted unexpectedly before the heartbeat is reset, the" << endl;
-            cout << "         camera may need to be power cycled to reset the heartbeat." << endl << endl;
-        }
-        else
-        {
-            cout << "Heartbeat has been reset." << endl;
-        }
-    }
-
-    return 0;
-}
-
-int ResetGVCPHeartbeat(CameraPtr pCam)
-{
-    return ConfigureGVCPHeartbeat(pCam, true);
-}
-
-int DisableGVCPHeartbeat(CameraPtr pCam)
-{
-    return ConfigureGVCPHeartbeat(pCam, false);
-}
 
 // This function acquires and saves 10 images from a device.
 int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
@@ -205,26 +98,9 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
 
         cout << "Acquiring images..." << endl;
 
-        //
-        // Retrieve device serial number for filename
-        //
-        // *** NOTES ***
-        // The device serial number is retrieved in order to keep cameras from
-        // overwriting one another. Grabbing image IDs could also accomplish
-        // this.
-        //
-        gcstring deviceSerialNumber("");
-        CStringPtr ptrStringSerial = nodeMapTLDevice.GetNode("DeviceSerialNumber");
-        if (IsReadable(ptrStringSerial))
-        {
-            deviceSerialNumber = ptrStringSerial->GetValue();
-
-            cout << "Device serial number retrieved as " << deviceSerialNumber << "..." << endl;
-        }
-        cout << endl;
 
         // Retrieve, convert, and save images
-        const unsigned int k_numImages = 10;
+        const unsigned int k_numImages = 20;
 
         //
         // Create ImageProcessor instance for post processing images
@@ -277,21 +153,7 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
                 else
                 {
                     //
-                    // Print image information; height and width recorded in pixels
-                    //
-                    // *** NOTES ***
-                    // Images have quite a bit of available metadata including
-                    // things such as CRC, image status, and offset values, to
-                    // name a few.
-                    //
-                    const size_t width = pResultImage->GetWidth();
-
-                    const size_t height = pResultImage->GetHeight();
-
-                    cout << "Grabbed image " << imageCnt << ", width = " << width << ", height = " << height << endl;
-
-                    //
-                    // Convert image to mono 8
+                    // Convert image to PixelFormat_RGB8
                     //
                     // *** NOTES ***
                     // Images can be converted between pixel formats by using
@@ -302,28 +164,30 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
                     // When converting images, color processing algorithm is an
                     // optional parameter.
                     //
-                    ImagePtr convertedImage = processor.Convert(pResultImage, PixelFormat_Mono8);
+                    ImagePtr convertedImage = processor.Convert(pResultImage, PixelFormat_RGB8);
 
-                    // Create a unique filename
-                    ostringstream filename;
-
-                    filename << "Acquisition-";
-                    if (!deviceSerialNumber.empty())
-                    {
-                        filename << deviceSerialNumber.c_str() << "-";
-                    }
-                    filename << imageCnt << ".jpg";
+                    unsigned int rows = convertedImage->GetHeight();
+                    unsigned int cols = convertedImage->GetWidth();
+                    unsigned int num_channels = convertedImage->GetNumChannels();
+                    void *image_data = convertedImage->GetData();
+                    unsigned int stride = convertedImage->GetStride();
+                    // With info like this you could e.g. build an opencv mat:
+                    // https://github.com/Teledyne-MV/Spinnaker-Examples/blob/d0acc4091f6debda991346c0ebd749326a6d73fd/AcquisitionOpenCV/AcquisitionOpenCV.cpp#L267
+                    
+                    cout << "Grabbed and converted image " << imageCnt
+                        << ", width = " << cols
+                        << ", height = " << rows
+                        << ", num_channels = " << num_channels
+                        << ", stride = " << stride
+                        << endl;
 
                     //
                     // Save image
                     //
-                    // *** NOTES ***
-                    // The standard practice of the examples is to use device
-                    // serial numbers to keep images of one device from
-                    // overwriting those of another.
-                    //
+                    ostringstream filename;
+                    filename << "Acquisition-";
+                    filename << imageCnt << ".jpg";
                     convertedImage->Save(filename.str().c_str());
-
                     cout << "Image saved at " << filename.str() << endl;
                 }
 
@@ -365,47 +229,7 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
     return result;
 }
 
-// This function prints the device information of the camera from the transport
-// layer; please see NodeMapInfo example for more in-depth comments on printing
-// device information from the nodemap.
-int PrintDeviceInfo(INodeMap& nodeMap)
-{
-    int result = 0;
-    cout << endl << "*** DEVICE INFORMATION ***" << endl << endl;
 
-    try
-    {
-        FeatureList_t features;
-        const CCategoryPtr category = nodeMap.GetNode("DeviceInformation");
-        if (IsReadable(category))
-        {
-            category->GetFeatures(features);
-
-            for (auto it = features.begin(); it != features.end(); ++it)
-            {
-                const CNodePtr pfeatureNode = *it;
-                cout << pfeatureNode->GetName() << " : ";
-                CValuePtr pValue = static_cast<CValuePtr>(pfeatureNode);
-                cout << (IsReadable(pValue) ? pValue->ToString() : "Node not readable");
-                cout << endl;
-            }
-        }
-        else
-        {
-            cout << "Device control information not available." << endl;
-        }
-    }
-    catch (Spinnaker::Exception& e)
-    {
-        cout << "Error: " << e.what() << endl;
-        result = -1;
-    }
-
-    return result;
-}
-
-// This function acts as the body of the example; please see NodeMapInfo example
-// for more in-depth comments on setting up cameras.
 int RunSingleCamera(CameraPtr pCam)
 {
     int result;
@@ -415,28 +239,14 @@ int RunSingleCamera(CameraPtr pCam)
         // Retrieve TL device nodemap and print device information
         INodeMap& nodeMapTLDevice = pCam->GetTLDeviceNodeMap();
 
-        result = PrintDeviceInfo(nodeMapTLDevice);
-
         // Initialize camera
         pCam->Init();
 
         // Retrieve GenICam nodemap
         INodeMap& nodeMap = pCam->GetNodeMap();
 
-        // Configure heartbeat for GEV camera
-#ifdef _DEBUG
-        result = result | DisableGVCPHeartbeat(pCam);
-#else
-        result = result | ResetGVCPHeartbeat(pCam);
-#endif
-
         // Acquire images
         result = result | AcquireImages(pCam, nodeMap, nodeMapTLDevice);
-
-#ifdef _DEBUG
-        // Reset heartbeat for GEV camera
-        result = result | ResetGVCPHeartbeat(pCam);
-#endif
 
         // Deinitialize camera
         pCam->DeInit();
@@ -454,106 +264,29 @@ int RunSingleCamera(CameraPtr pCam)
 // comments on preparing and cleaning up the system.
 int main(int /*argc*/, char** /*argv*/)
 {
-    // Since this application saves images in the current folder
-    // we must ensure that we have permission to write to this folder.
-    // If we do not have permission, fail right away.
-    FILE* tempFile = fopen("test.txt", "w+");
-    if (tempFile == nullptr)
-    {
-        cout << "Failed to create file in current folder.  Please check "
-            "permissions."
-            << endl;
-        cout << "Press Enter to exit..." << endl;
-        getchar();
-        return -1;
-    }
-    fclose(tempFile);
-    remove("test.txt");
+    SystemPtr system = System::GetInstance(); // sigleton System
 
-    // Print application build information
-    cout << "Application build date: " << __DATE__ << " " << __TIME__ << endl << endl;
-
-    // Retrieve singleton reference to system object
-    SystemPtr system = System::GetInstance();
-
-    // Print out current library version
-    const LibraryVersion spinnakerLibraryVersion = system->GetLibraryVersion();
-    cout << "Spinnaker library version: " << spinnakerLibraryVersion.major << "." << spinnakerLibraryVersion.minor
-        << "." << spinnakerLibraryVersion.type << "." << spinnakerLibraryVersion.build << endl
-        << endl;
-
-    // Retrieve list of cameras from the system
     CameraList camList = system->GetCameras();
-
     const unsigned int numCameras = camList.GetSize();
 
-    cout << "Number of cameras detected: " << numCameras << endl << endl;
-
-    // Finish if there are no cameras
-    if (numCameras == 0)
+    if (numCameras != 1)
     {
-        // Clear camera list before releasing system
+        cout << "Detected " << numCameras << " cameras. This program is currently designed to work with exactly one camera." << endl;
         camList.Clear();
-
-        // Release system
         system->ReleaseInstance();
-
-        cout << "Not enough cameras!" << endl;
-        cout << "Done! Press Enter to exit..." << endl;
-        getchar();
-
         return -1;
     }
 
-    //
-    // Create shared pointer to camera
-    //
-    // *** NOTES ***
-    // The CameraPtr object is a shared pointer, and will generally clean itself
-    // up upon exiting its scope. However, if a shared pointer is created in the
-    // same scope that a system object is explicitly released (i.e. this scope),
-    // the reference to the shared point must be broken manually.
-    //
-    // *** LATER ***
-    // Shared pointers can be terminated manually by assigning them to nullptr.
-    // This keeps releasing the system from throwing an exception.
-    //
-    CameraPtr pCam = nullptr;
+    CameraPtr pCam = camList.GetByIndex(0);
+    int result = RunSingleCamera(pCam);
 
-    int result = 0;
+    // Must manually release the shared pointer before system->ReleaseInstance. See Acquisition example in Spinnaker SDK.
+    // Assigning to nullptr is a way to release a spinnaker sdk shared ptr.
+    pCam = nullptr; 
 
-    // Run example on each camera
-    for (unsigned int i = 0; i < numCameras; i++)
-    {
-        // Select camera
-        pCam = camList.GetByIndex(i);
-
-        cout << endl << "Running example for camera " << i << "..." << endl;
-
-        // Run example
-        result = result | RunSingleCamera(pCam);
-
-        cout << "Camera " << i << " example complete..." << endl << endl;
-    }
-
-    //
-    // Release reference to the camera
-    //
-    // *** NOTES ***
-    // Had the CameraPtr object been created within the for-loop, it would not
-    // be necessary to manually break the reference because the shared pointer
-    // would have automatically cleaned itself up upon exiting the loop.
-    //
-    pCam = nullptr;
-
-    // Clear camera list before releasing system
+    // cleanup
     camList.Clear();
-
-    // Release system
     system->ReleaseInstance();
-
-    cout << endl << "Done! Press Enter to exit..." << endl;
-    getchar();
 
     return result;
 }
