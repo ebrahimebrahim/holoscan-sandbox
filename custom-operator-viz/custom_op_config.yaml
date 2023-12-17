@@ -1,0 +1,17 @@
+%YAML 1.2
+custom_op:
+  directory: "/opt/nvidia/data/endoscopy/video"   # Path to gxf entity video data
+  basename: "surgical_video"             # Look for <basename>.gxf_{entities|index}
+  frame_rate: 0       # Frame rate to replay.  (default: 0 follow frame rate in timestamps)
+  repeat: true        # Loop video?   (default: false)
+  realtime: true      # Play in realtime, based on frame_rate/timestamps   (default: true)
+  count: 0            # Number of frames to read  (default: 0 for no frame count restriction)
+
+holoviz:
+  width: 854          # width of window size
+  height: 480         # height of window size
+  tensors:
+    - name: ""        # name of tensor containing input data to display
+      type: color     # input type e.g., color, triangles, text, depth_map
+      opacity: 1.0    # layer opacity
+      priority: 0     # determines render order, higher priority layers are rendered on top
